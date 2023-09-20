@@ -77,7 +77,7 @@ class SuperYextClient(YextClient):
         This method had to be reimplemented because there is a bug in the Yext Python SDK.
         """
         # The SDK pointed to the wrong thing!
-        endpoint = self.ANSWERS_ENDPOINTS[self.env]["answers_vertical"]
+        endpoint = "https://liveapi-us2.yext.com/v2/accounts/me/search/vertical/query"
         params = {
             "input": query,
             "api_key": self.api_key,
