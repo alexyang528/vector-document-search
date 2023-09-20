@@ -1,0 +1,4 @@
+pydantic==1.10.0
+requests==2.28.2
+streamlit==1.20.0
+yext==0.6.8
