@@ -22,7 +22,16 @@ def search_request(client, query, experience_key, vertical_key):
     return client.search_answers_vertical(query=query, experience_key=experience_key, vertical_key=vertical_key)
 
 
-def result_card(name, segment, score):
+def result_card(result):
+    name = result["data"]["name"]
+    segment = result["segment"]["text"].strip()
+    if name == segment:
+        segment = result["data"]["bodyV2"]["markdown"][:250] + " ..."
+        score = str(result["segment"]["score"]) + " (matched on name)"
+    else:
+        segment = "... " + result["segment"]["text"].strip() + " ..."
+        score = result["segment"]["score"]
+
     template = f"""
     <div style="border-radius: 5px; background-color: #f2f2f2; padding: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);">
         <div style="font-size: 18px; font-weight: bold;">{name}</div>
@@ -104,6 +113,15 @@ if direct_answer:
     direct_answer_card(direct_answer)
     st.write("---")
 
+    related_result = direct_answer["relatedItem"]["data"]["uid"]
+
+    for result in results:
+        if result["data"]["uid"] == related_result and direct_answer["answer"]["snippet"]["value"] in result["segment"]["text"]:
+            result_card(result)
+            st.write("---")
+            results.remove(result)
+            break
+
 for result in results:
     name = result["data"]["name"]
     segment = result["segment"]["text"].strip()
@@ -114,6 +132,6 @@ for result in results:
         segment = "... " + result["segment"]["text"].strip() + " ..."
         score = result["segment"]["score"]
 
-    result_card(name, segment, score)
+    result_card(result)
     st.write("---")
     
