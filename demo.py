@@ -36,9 +36,12 @@ def result_card(name, segment, score):
 
 def direct_answer_card(direct_answer):
     snippet_value = direct_answer['answer']['snippet']['value']
-    answer_value = direct_answer['answer']['value']
     offset = direct_answer['answer']['snippet']['matchedSubstrings'][0]['offset']
     length = direct_answer['answer']['snippet']['matchedSubstrings'][0]['length']
+    if "value" in direct_answer['answer']:
+        answer_value = direct_answer['answer']['value']
+    else:
+        answer_value = snippet_value[offset:offset+length]
     book_name = direct_answer['relatedItem']['data']['fieldValues']['name']
 
     template = f"""
