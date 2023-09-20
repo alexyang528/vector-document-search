@@ -22,11 +22,13 @@ def search_request(client, query, experience_key, vertical_key):
     return client.search_answers_vertical(query=query, experience_key=experience_key, vertical_key=vertical_key)
 
 
-def result_card(result):
+def result_card(result, body_field=None):
     name = result["data"]["name"]
     segment = result["segment"]["text"].strip()
-    if name == segment:
-        segment = result["data"]["bodyV2"]["markdown"][:250] + " ..."
+
+    # IF the name segment, replace it with the body field
+    if name == segment and body_field:
+        segment = result["data"][body_field]["markdown"][:250] + " ..."
         score = str(result["segment"]["score"]) + " (matched on name)"
     else:
         segment = "... " + result["segment"]["text"].strip() + " ..."
@@ -76,26 +78,28 @@ DEMOS = {
         "api_key": st.secrets["book-search"]["api_key"],
         "experience_key": "book-search",
         "vertical_key": "books",
-        "default_search": "Who is Albus Dumbledore?"
+        "body_field": None,
+        "default_search": "Who is Albus Dumbledore?",
     },
     "samsung": {
         "name": "Samsung Troubleshooting Guides",
         "api_key": st.secrets["samsung-troubleshooting-search"]["api_key"],
         "experience_key": "samsung-troubleshooting-search",
         "vertical_key": "guides",
+        "body_field": "bodyV2",
         "default_search": "How do I reset my ice maker?"
     }
 }
 
 demo = st.sidebar.selectbox("Select Demo", list(DEMOS.keys()))
 
-
-CLIENT = init_yext_client(DEMOS[demo]["api_key"])
-EXPERIENCE_KEY = DEMOS[demo]["experience_key"]
-VERTICAL_KEY = DEMOS[demo]["vertical_key"]
+client = init_yext_client(DEMOS[demo]["api_key"])
+experience_key = DEMOS[demo]["experience_key"]
+vertical_key = DEMOS[demo]["vertical_key"]
+body_field = DEMOS[demo]["body_field"]
 
 query = st.text_input(label="Search Query", value=DEMOS[demo]["default_search"])
-response = search_request(CLIENT, query, EXPERIENCE_KEY, VERTICAL_KEY)
+response = search_request(client, query, experience_key, vertical_key)
 
 with st.sidebar.expander("View Raw Response"):
     st.write(response)
@@ -117,12 +121,12 @@ if direct_answer:
 
     for result in results:
         if result["data"]["uid"] == related_result and direct_answer["answer"]["snippet"]["value"] in result["segment"]["text"]:
-            result_card(result)
+            result_card(result, body_field)
             st.write("---")
             results.remove(result)
             break
 
 for result in results:
-    result_card(result)
+    result_card(result, body_field)
     st.write("---")
     
