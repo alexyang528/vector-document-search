@@ -123,15 +123,6 @@ if direct_answer:
             break
 
 for result in results:
-    name = result["data"]["name"]
-    segment = result["segment"]["text"].strip()
-    if name == segment:
-        segment = result["data"]["bodyV2"]["markdown"][:250] + " ..."
-        score = str(result["segment"]["score"]) + " (matched on name)"
-    else:
-        segment = "... " + result["segment"]["text"].strip() + " ..."
-        score = result["segment"]["score"]
-
     result_card(result)
     st.write("---")
     
