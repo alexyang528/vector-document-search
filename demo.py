@@ -129,42 +129,84 @@ client = init_yext_client(DEMOS[demo]["api_key"])
 experience_key = DEMOS[demo]["experience_key"]
 vertical_key = DEMOS[demo]["vertical_key"]
 body_field = DEMOS[demo]["body_field"]
-query = st.text_input(label="Search Query", value=DEMOS[demo]["default_search"])
+query = st.text_input(label=f"Search {DEMOS[demo]['name']}:", value=DEMOS[demo]["default_search"])
 
-# Time how long it takes to make this request
-start = time.time()
-response = search_request(client, query, experience_key, vertical_key)
-end = time.time()
-response_time = end - start
-results = response["response"].get("results", [])
-results_count = response["response"].get("resultsCount", 0)
-direct_answer = response["response"].get("directAnswer", None)
-
-# Get results from current vertical
-if show_current:
+# Fetch results for vector search
+if query:
     start = time.time()
-    current_response = search_request(client, query, experience_key, DEMOS[demo]["current_vertical_key"])
+    response = search_request(client, query, experience_key, vertical_key)
     end = time.time()
-    current_response_time = end - start
-    current_results = current_response["response"].get("results", [])
-    current_results_count = current_response["response"].get("resultsCount", 0)
-    current_direct_answer = current_response["response"].get("directAnswer", None)
+    response_time = end - start
+    results = response["response"].get("results", [])
+    results_count = response["response"].get("resultsCount", 0)
+    direct_answer = response["response"].get("directAnswer", None)
 
-# Write API response
-st.sidebar.write("## API Responses")
-with st.sidebar.expander("View Raw Response"):
-    st.write(response)
-if show_current:
-    with st.sidebar.expander("View Non-Vector Raw Response"):
-        st.write(current_response)
+    # Get results for non-vector search
+    if show_current:
+        start = time.time()
+        current_response = search_request(client, query, experience_key, DEMOS[demo]["current_vertical_key"])
+        end = time.time()
+        current_response_time = end - start
+        current_results = current_response["response"].get("results", [])
+        current_results_count = current_response["response"].get("resultsCount", 0)
+        current_direct_answer = current_response["response"].get("directAnswer", None)
+
+    # Write API response
+    st.sidebar.write("## API Responses")
+    with st.sidebar.expander("View Raw Response"):
+        st.write(response)
+    if show_current:
+        with st.sidebar.expander("View Non-Vector Raw Response"):
+            st.write(current_response)
 
 
-# Render results
-if show_current:
-    vector, current = st.columns(2, gap="medium")
+    # Render results
+    if show_current:
+        vector, current = st.columns(2, gap="medium")
 
-    with vector:
-        st.write("### Vector Document Search")
+        with vector:
+            st.write("### Vector Document Search")
+            if query:
+                st.write(f"_{results_count} results ({response_time:.2f} seconds)_")
+            if direct_answer:
+                direct_answer_card(direct_answer)
+                st.write("---")
+
+                related_result = direct_answer["relatedItem"]["data"]["uid"]
+
+                for result in results:
+                    if result["data"]["uid"] == related_result and direct_answer["answer"]["snippet"]["value"] in result["segment"]["text"]:
+                        result_card(result, body_field)
+                        st.write("---")
+                        results.remove(result)
+                        break
+
+            for result in results:
+                result_card(result, body_field)
+                st.write("---")
+
+        with current:
+            st.write("### Non-Vector Search")
+            if query:
+                st.write(f"_{current_results_count} results ({current_response_time:.2f} seconds)_")
+            if current_direct_answer:
+                direct_answer_card(current_direct_answer)
+                st.write("---")
+
+                related_result = current_direct_answer["relatedItem"]["data"]["uid"]
+
+                for result in current_results:
+                    if result["data"]["uid"] == related_result:
+                        result_card(result, body_field)
+                        st.write("---")
+                        current_results.remove(result)
+                        break
+
+            for result in current_results:
+                result_card(result, body_field)
+                st.write("---")        
+
+    else:
         if query:
             st.write(f"_{results_count} results ({response_time:.2f} seconds)_")
         if direct_answer:
@@ -183,45 +225,4 @@ if show_current:
         for result in results:
             result_card(result, body_field)
             st.write("---")
-
-    with current:
-        st.write("### Non-Vector Search")
-        if query:
-            st.write(f"_{current_results_count} results ({current_response_time:.2f} seconds)_")
-        if current_direct_answer:
-            direct_answer_card(current_direct_answer)
-            st.write("---")
-
-            related_result = current_direct_answer["relatedItem"]["data"]["uid"]
-
-            for result in current_results:
-                if result["data"]["uid"] == related_result:
-                    result_card(result, body_field)
-                    st.write("---")
-                    current_results.remove(result)
-                    break
-
-        for result in current_results:
-            result_card(result, body_field)
-            st.write("---")        
-
-else:
-    if query:
-        st.write(f"_{results_count} results ({response_time:.2f} seconds)_")
-    if direct_answer:
-        direct_answer_card(direct_answer)
-        st.write("---")
-
-        related_result = direct_answer["relatedItem"]["data"]["uid"]
-
-        for result in results:
-            if result["data"]["uid"] == related_result and direct_answer["answer"]["snippet"]["value"] in result["segment"]["text"]:
-                result_card(result, body_field)
-                st.write("---")
-                results.remove(result)
-                break
-
-    for result in results:
-        result_card(result, body_field)
-        st.write("---")
-        
+            
