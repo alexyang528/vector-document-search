@@ -15,6 +15,7 @@ st.title("Demo: Vector Document Search")
 def init_yext_client(api_key):
     return SuperYextClient(api_key)
 
+
 @st.cache_resource
 def init_dsg_client(api_key):
     return DSGClient(api_key)
@@ -24,7 +25,21 @@ def search_request(client, query, experience_key, vertical_key):
     return client.search_answers_vertical(query=query, experience_key=experience_key, vertical_key=vertical_key)
 
 
-def result_card(result, body_field=[]):
+def clean_search_results(dsg_client, segment, prompt="clean_segment_prompt.md"):
+    with open(prompt, "r") as f:
+        prompt = f.read()
+    
+    prompt = prompt.format(segment=segment)
+    
+    cleaned_results = dsg_client.chat_completion(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    return cleaned_results
+
+
+def result_card(result, body_field=[], dsg_client=None):
     name = result["data"]["name"]
 
     # Get the body value (e.g., 'bodyV2.markdown')
@@ -43,6 +58,10 @@ def result_card(result, body_field=[]):
             segment = body_value[:250] + " ..."
             score = str(result["segment"]["score"]) + " (matched on name)"
         
+        # If recieved a DSG client, clean the segment
+        if dsg_client:
+            segment = clean_search_results(dsg_client, segment)
+
         template = f"""
         <div style="border-radius: 5px; background-color: #f2f2f2; padding: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);">
             <div style="font-size: 18px; font-weight: bold;">{name}</div>
@@ -59,6 +78,10 @@ def result_card(result, body_field=[]):
             segment = result["data"].get("s_snippet")
         else:
             segment = body_value[:250] + " ..."
+
+        # If recieved a DSG client, clean the segment
+        if dsg_client:
+            segment = clean_search_results(dsg_client, segment)
 
         template = f"""
         <div style="border-radius: 5px; background-color: #f2f2f2; padding: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);">
@@ -121,11 +144,15 @@ DEMOS = {
 st.sidebar.write("## Demo Options")
 demo = st.sidebar.selectbox("Select Demo", list(DEMOS.keys()))
 show_current = st.sidebar.checkbox("Compare Non-Vector Results", value=False)
-gpt_cleaning = st.sidebar.checkbox("Use GPT Cleaning", value=False)
+# Removing option, because very slow
+# gpt_cleaning = st.sidebar.checkbox("Use GPT Cleaning", value=False)
 chat_direct_answer = st.sidebar.checkbox("Generate Chat Direct Answer", value=False)
 
 # Calculate values
 client = init_yext_client(DEMOS[demo]["api_key"])
+dsg_client = None
+# if gpt_cleaning: # Only if the user wants to clean segments
+#     dsg_client = init_dsg_client(DEMOS[demo]["api_key"])
 experience_key = DEMOS[demo]["experience_key"]
 vertical_key = DEMOS[demo]["vertical_key"]
 body_field = DEMOS[demo]["body_field"]
@@ -176,13 +203,13 @@ if query:
 
                 for result in results:
                     if result["data"]["uid"] == related_result and direct_answer["answer"]["snippet"]["value"] in result["segment"]["text"]:
-                        result_card(result, body_field)
+                        result_card(result, body_field, dsg_client)
                         st.write("---")
                         results.remove(result)
                         break
 
             for result in results:
-                result_card(result, body_field)
+                result_card(result, body_field, dsg_client)
                 st.write("---")
 
         with current:
@@ -197,13 +224,13 @@ if query:
 
                 for result in current_results:
                     if result["data"]["uid"] == related_result:
-                        result_card(result, body_field)
+                        result_card(result, body_field, dsg_client)
                         st.write("---")
                         current_results.remove(result)
                         break
 
             for result in current_results:
-                result_card(result, body_field)
+                result_card(result, body_field, dsg_client)
                 st.write("---")        
 
     else:
@@ -217,12 +244,12 @@ if query:
 
             for result in results:
                 if result["data"]["uid"] == related_result and direct_answer["answer"]["snippet"]["value"] in result["segment"]["text"]:
-                    result_card(result, body_field)
+                    result_card(result, body_field, dsg_client)
                     st.write("---")
                     results.remove(result)
                     break
 
         for result in results:
-            result_card(result, body_field)
+            result_card(result, body_field, dsg_client)
             st.write("---")
             
