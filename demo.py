@@ -92,7 +92,15 @@ def result_card(result, body_field=[], dsg_client=None):
         return st.write(template, unsafe_allow_html=True)
 
 
-def direct_answer_card(direct_answer):
+def direct_answer_card(direct_answer, is_chat=False):
+    if is_chat:
+        template = f"""
+            <div style="border-radius: 5px; background-color: #ADD8E6; padding: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);">
+                <div style="font-size: 18px; font-weight:bold;">{direct_answer}</div>
+            </div>
+        """
+        return st.write(template, unsafe_allow_html=True)
+
     snippet_value = direct_answer['answer']['snippet']['value']
     offset = direct_answer['answer']['snippet']['matchedSubstrings'][0]['offset']
     length = direct_answer['answer']['snippet']['matchedSubstrings'][0]['length']
@@ -100,6 +108,7 @@ def direct_answer_card(direct_answer):
         answer_value = direct_answer['answer']['value']
     else:
         answer_value = snippet_value[offset:offset+length]
+    answer_value = answer_value.replace('\n', '')
     book_name = direct_answer['relatedItem']['data']['fieldValues']['name']
 
     template = f"""
@@ -123,6 +132,7 @@ DEMOS = {
     "harry_potter": {
         "name": "Harry Potter Books",
         "api_key": st.secrets["book-search"]["api_key"],
+        "chat_api_key": st.secrets["book-search"]["chat_api_key"],
         "experience_key": "book-search",
         "vertical_key": "books",
         "current_vertical_key": "books_current",
@@ -132,25 +142,36 @@ DEMOS = {
     "samsung": {
         "name": "Samsung Troubleshooting Guides",
         "api_key": st.secrets["samsung-troubleshooting-search"]["api_key"],
+        "chat_api_key": st.secrets["samsung-troubleshooting-search"]["chat_api_key"],
         "experience_key": "samsung-troubleshooting-search",
         "vertical_key": "guides",
         "current_vertical_key": "guides_current",
         "body_field": ["bodyV2", "markdown"],
         "default_search": ""
+    },
+    "iceberg_reports": {
+        "name": "Iceberg Reports",
+        "api_key": st.secrets["iceberg-reports"]["api_key"],
+        "experience_key": "iceberg-iq-report-search",
+        "vertical_key": "reports",
+        "body_field": [],
+        "default_search": "",
     }
 }
 
 # Populate sidebar options
 st.sidebar.write("## Demo Options")
 demo = st.sidebar.selectbox("Select Demo", list(DEMOS.keys()))
-show_current = st.sidebar.checkbox("Compare Non-Vector Results", value=False)
+show_current = st.sidebar.checkbox("Compare Non-Vector Results", value=False, disabled="current_vertical_key" not in DEMOS[demo])
 # Removing option, because very slow
 # gpt_cleaning = st.sidebar.checkbox("Use GPT Cleaning", value=False)
-chat_direct_answer = st.sidebar.checkbox("Generate Chat Direct Answer", value=False)
+chat_direct_answer = st.sidebar.checkbox("Generate Chat Direct Answer", value=False, disabled="chat_api_key" not in DEMOS[demo])
 
 # Calculate values
 client = init_yext_client(DEMOS[demo]["api_key"])
 dsg_client = None
+if chat_direct_answer:
+    chat_client = init_yext_client(DEMOS[demo]["chat_api_key"])
 # if gpt_cleaning: # Only if the user wants to clean segments
 #     dsg_client = init_dsg_client(DEMOS[demo]["api_key"])
 experience_key = DEMOS[demo]["experience_key"]
@@ -166,7 +187,10 @@ if query:
     response_time = end - start
     results = response["response"].get("results", [])
     results_count = response["response"].get("resultsCount", 0)
-    direct_answer = response["response"].get("directAnswer", None)
+    if chat_direct_answer:
+        direct_answer = chat_client.chat_message(query, results, experience_key)
+    else:
+        direct_answer = response["response"].get("directAnswer", None)
 
     # Get results for non-vector search
     if show_current:
@@ -176,7 +200,10 @@ if query:
         current_response_time = end - start
         current_results = current_response["response"].get("results", [])
         current_results_count = current_response["response"].get("resultsCount", 0)
-        current_direct_answer = current_response["response"].get("directAnswer", None)
+        if chat_direct_answer:
+            current_direct_answer = chat_client.chat_message(query, current_results, experience_key)
+        else:
+            current_direct_answer = current_response["response"].get("directAnswer", None)
 
     # Write API response
     st.sidebar.write("## API Responses")
@@ -196,17 +223,17 @@ if query:
             if query:
                 st.write(f"_{results_count} results ({response_time:.2f} seconds)_")
             if direct_answer:
-                direct_answer_card(direct_answer)
+                direct_answer_card(direct_answer, chat_direct_answer)
                 st.write("---")
 
-                related_result = direct_answer["relatedItem"]["data"]["uid"]
+                # related_result = direct_answer["relatedItem"]["data"]["uid"]
 
-                for result in results:
-                    if result["data"]["uid"] == related_result and direct_answer["answer"]["snippet"]["value"] in result["segment"]["text"]:
-                        result_card(result, body_field, dsg_client)
-                        st.write("---")
-                        results.remove(result)
-                        break
+                # for result in results:
+                #     if result["data"]["uid"] == related_result and direct_answer["answer"]["snippet"]["value"] in result["segment"]["text"]:
+                #         result_card(result, body_field, dsg_client)
+                #         st.write("---")
+                #         results.remove(result)
+                #         break
 
             for result in results:
                 result_card(result, body_field, dsg_client)
@@ -217,17 +244,17 @@ if query:
             if query:
                 st.write(f"_{current_results_count} results ({current_response_time:.2f} seconds)_")
             if current_direct_answer:
-                direct_answer_card(current_direct_answer)
+                direct_answer_card(current_direct_answer, chat_direct_answer)
                 st.write("---")
 
-                related_result = current_direct_answer["relatedItem"]["data"]["uid"]
+                # related_result = current_direct_answer["relatedItem"]["data"]["uid"]
 
-                for result in current_results:
-                    if result["data"]["uid"] == related_result:
-                        result_card(result, body_field, dsg_client)
-                        st.write("---")
-                        current_results.remove(result)
-                        break
+                # for result in current_results:
+                #     if result["data"]["uid"] == related_result:
+                #         result_card(result, body_field, dsg_client)
+                #         st.write("---")
+                #         current_results.remove(result)
+                #         break
 
             for result in current_results:
                 result_card(result, body_field, dsg_client)
@@ -237,17 +264,17 @@ if query:
         if query:
             st.write(f"_{results_count} results ({response_time:.2f} seconds)_")
         if direct_answer:
-            direct_answer_card(direct_answer)
+            direct_answer_card(direct_answer, chat_direct_answer)
             st.write("---")
 
-            related_result = direct_answer["relatedItem"]["data"]["uid"]
+            # related_result = direct_answer["relatedItem"]["data"]["uid"]
 
-            for result in results:
-                if result["data"]["uid"] == related_result and direct_answer["answer"]["snippet"]["value"] in result["segment"]["text"]:
-                    result_card(result, body_field, dsg_client)
-                    st.write("---")
-                    results.remove(result)
-                    break
+            # for result in results:
+            #     if result["data"]["uid"] == related_result and direct_answer["answer"]["snippet"]["value"] in result["segment"]["text"]:
+            #         result_card(result, body_field, dsg_client)
+            #         st.write("---")
+            #         results.remove(result)
+            #         break
 
         for result in results:
             result_card(result, body_field, dsg_client)

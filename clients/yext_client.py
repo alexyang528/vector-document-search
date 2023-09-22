@@ -5,65 +5,46 @@ from yext import YextClient
 
 class SuperYextClient(YextClient):
 
-    """
-    This class extends the base YextClient class with additional functionality, such as access to the CaC API.
-    """
-
-    endpoints = {
-        "entity_type": "https://api.yext.com/v2/accounts/me/config/resourcenames/km/entity-type",
-        "search_experience": "https://api.yext.com/v2/accounts/me/config/resources/answers/answers-config/{id}",
-        "search_experiences": "https://api.yext.com/v2/accounts/me/config/resourcenames/answers/answers-config",
-        "list_entities": "https://api.yextapis.com/v2/accounts/me/entities",
-    }
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.v = "20230601"
         self.default_params = {"api_key": self.api_key, "v": self.v}
 
-    def get_entity_types(self) -> List[str]:
-        response = requests.get(
-            self.endpoints["entity_type"],
-            params=self.default_params,
-        )
 
-        if not response.ok:
-            raise Exception(f"Error: {response.status_code}")
+    def chat_message(
+        self,
+        query: str,
+        search_results: dict,
+        bot_id: str,
+    ):
+        base_url = f"https://liveapi-us2.yext.com/v2/accounts/me/chat/{bot_id}/message"
+        request_body = {
+            "messages": [
+                {
+                "source": "BOT",
+                "text": "Hi! How can I help you?",
+                },
+                {
+                "source": "USER",
+                "text": query,
+                },
+            ],
+            "notes": {
+                "currentGoal": "ANSWER_QUESTION",
+                "queryResult": search_results,
+                "searchQuery": query,
+                "currentStepIndices": [1],
+            },
+            "promptPackage": "stable",
+            "version": "STAGING"
+        }
 
-        entity_types = response.json()["response"]
-        return entity_types
+        response = requests.post(base_url, json=request_body, params={**self.default_params})
+        response.raise_for_status()
 
-    def get_search_experiences(self) -> List[str]:
-        response = requests.get(
-            self.endpoints["search_experiences"],
-            params=self.default_params,
-        )
+        return response.json()["response"]["message"]["text"]
 
-        if not response.ok:
-            raise Exception(f"Error: {response.status_code}")
-
-        search_experiences = response.json()["response"]
-        return search_experiences
-
-    def get_search_experience(self, experience_key: str) -> dict:
-        full_url = self.endpoints["search_experience"].format(id=experience_key)
-        response = requests.get(
-            full_url,
-            params=self.default_params,
-        )
-        if not response.ok:
-            raise Exception(f"Error: {response.status_code}")
-        return response.json()["response"]
-
-    def list_entities(self, entity_type: str):
-        response = requests.get(
-            self.endpoints["list_entities"],
-            params={**self.default_params, "entityTypes": entity_type},
-        )
-        if not response.ok:
-            raise Exception(f"Error: {response.status_code}")
-        return response.json()["response"]["entities"]
-
+    
     def search_answers_vertical(
         self,
         query: str,
