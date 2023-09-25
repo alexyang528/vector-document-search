@@ -231,11 +231,6 @@ DEMOS = [
     }
 ]
 
-# Initialize clients
-for demo in DEMOS:
-    demo["client"] = init_yext_client(demo["api_key"])
-    demo["dsg_client"] = init_dsg_client(demo["api_key"]) if demo["body_fields"] else None
-    demo["chat_client"] = init_yext_client(demo["chat_api_key"]) if demo["chat_api_key"] else None
 
 # Select demo
 st.sidebar.write("## Select Demo")
@@ -245,6 +240,11 @@ demo = st.sidebar.selectbox(label="Select Demo", options=DEMOS, format_func=lamb
 show_current = st.sidebar.checkbox("Compare Non-Vector Results", value=False, disabled=not demo["current_vertical_key"])
 chat_direct_answer = st.sidebar.checkbox("Generate Chat Direct Answer", value=False, disabled=not demo["chat_api_key"])
 # gpt_cleaning = st.sidebar.checkbox("Use GPT Cleaning", value=False)
+
+# Initialize clients
+demo["client"] = init_yext_client(demo["api_key"])
+# demo["dsg_client"] = init_dsg_client(demo["api_key"])
+demo["chat_client"] = init_yext_client(demo["chat_api_key"]) if chat_direct_answer and demo["chat_api_key"] else None
 
 # Query input
 query = st.text_input(label=f"Search {demo['name']}:", value=demo["default_search"])
