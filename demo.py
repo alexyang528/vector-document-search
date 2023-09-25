@@ -1,4 +1,3 @@
-import asyncio
 import time
 import streamlit as st
 from clients.yext_client import SuperYextClient
@@ -73,6 +72,9 @@ def chat_direct_answer_card(direct_answer, element):
     template = f"""
         <div style="border-radius: 5px; background-color: #ADD8E6; padding: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);">
             <div style="font-size: 18px; font-weight:bold;">{direct_answer}</div>
+                <div style="margin-top: 10px; font-size: 14px; color: #777;">
+                    <i>Generated using Yext Chat</i>
+                </div>
         </div>
     """
     return element.write(template, unsafe_allow_html=True)
@@ -107,7 +109,7 @@ def regular_direct_answer_card(direct_answer, element):
     return element.write(template, unsafe_allow_html=True)
 
 
-def render_results(client, query, demo, vector=True, chat_client=None):
+def render_results(client, query, demo, vector=True):
 
     if vector:
         vertical_key = demo["vertical_key"]
@@ -171,6 +173,7 @@ DEMOS = [
         "api_key": st.secrets["book-search"]["api_key"],
         "chat_api_key": st.secrets["book-search"]["chat_api_key"],
         "bot_id": "book-search",
+        "goal_id": "ANSWER_QUESTION",
         "experience_key": "book-search",
         "vertical_key": "books",
         "current_vertical_key": "books_current",
@@ -248,14 +251,16 @@ if query:
     if show_current:
         vector, current = st.columns(2, gap="medium")
 
+        # Render results
         with vector:
             st.write("### Vector Document Search")
-            vector_response, vector_placeholder = render_results(client, query, demo, vector=True, chat_client=chat_client)
+            vector_response, vector_placeholder = render_results(client, query, demo, True)
 
         with current:
             st.write("### Non-Vector Search")
-            current_response, current_placeholder = render_results(client, query, demo, vector=False, chat_client=chat_client)
+            current_response, current_placeholder = render_results(client, query, demo, False)
 
+        # Render direct answers
         with vector:
             render_direct_answer(vector_response, vector_placeholder, chat_client=chat_client)
         
@@ -270,7 +275,10 @@ if query:
             st.write(current_response)
 
     else:
-        response, placeholder = render_results(client, query, demo, vector=True, chat_client=chat_client)
+        # Render results
+        response, placeholder = render_results(client, query, demo, True)
+
+        # Render direct answer
         render_direct_answer(response, placeholder, chat_client=chat_client)
 
         # Write API response
