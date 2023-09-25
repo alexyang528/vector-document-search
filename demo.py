@@ -195,9 +195,9 @@ DEMOS = [
         "api_key": st.secrets["samsung-troubleshooting-search"]["api_key"],
         "chat_api_key": st.secrets["samsung-troubleshooting-search"]["chat_api_key"],
         "chat_params": {
-            "bot_id": "samsung-troubleshooting-guides",
+            "bot_id": "generic-question-answerer",
             "goal_id": "ANSWER_QUESTION",
-            "step_indices": [1],
+            "step_indices": [0],
         },
         "experience_key": "samsung-troubleshooting-search",
         "vertical_key": "guides",
@@ -207,7 +207,12 @@ DEMOS = [
     {
         "name": "Iceberg Reports",
         "api_key": st.secrets["iceberg-reports"]["api_key"],
-        "chat_api_key": None,
+        "chat_api_key": st.secrets["iceberg-reports"]["chat_api_key"],
+        "chat_params": {
+            "bot_id": "generic-question-answerer",
+            "goal_id": "ANSWER_QUESTION",
+            "step_indices": [0],
+        },
         "experience_key": "iceberg-iq-report-search",
         "vertical_key": "reports",
         "current_vertical_key": None,
@@ -218,9 +223,9 @@ DEMOS = [
         "api_key": st.secrets["cox-manuals"]["api_key"],
         "chat_api_key": st.secrets["cox-manuals"]["chat_api_key"],
         "chat_params": {
-            "bot_id": "cox-manuals-chatbot",
+            "bot_id": "generic-question-answerer",
             "goal_id": "ANSWER_QUESTION",
-            "step_indices": [1],
+            "step_indices": [0],
         },
         "experience_key": "cox-residential-answers-for-chat",
         "vertical_key": "manuals_doc_search",
@@ -230,7 +235,12 @@ DEMOS = [
     {
         "name": "Hitchhikers",
         "api_key": st.secrets["hitchhikers"]["api_key"],
-        "chat_api_key": None,
+        "chat_api_key": st.secrets["hitchhikers"]["chat_api_key"],
+        "chat_params": {
+            "bot_id": "generic-question-answerer",
+            "goal_id": "ANSWER_QUESTION",
+            "step_indices": [0],
+        },
         "experience_key": "yext-help-hitchhikers-vector-search",
         "vertical_key": "content",
         "current_vertical_key": "content_current",
