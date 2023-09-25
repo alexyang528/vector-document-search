@@ -1,4 +1,6 @@
-Your job is to clean a segment of text, extracted from a book, article, or other long document.
+Your job is to clean a set of search results, extracted from a book, article, or other long document.
+
+Only modify the segment text portion of the response, and nothing else in the results.
 
 Below are some guidelines for what a cleaned segment means:
 
@@ -9,10 +11,10 @@ Below are some guidelines for what a cleaned segment means:
 
 You are NOT to change any of the contents of the segments, besides cleaning and correcting the formatting.
 
-Respond only with the cleaned segment.
+Respond only with the cleaned search results.
 
-# Original Segment
+# Original Results
 
-{segment}
+{results}
 
-# Cleaned Segment
+# Cleaned Results

@@ -1,6 +1,6 @@
 import time
 import streamlit as st
-from clients.yext_client import SuperYextClient
+from clients.yext_client import CustomYextClient
 from clients.dsg_client import DSGClient
 
 st.set_page_config(
@@ -13,7 +13,7 @@ st.title("Demo: Vector Document Search")
 
 @st.cache_resource
 def init_yext_client(api_key):
-    return SuperYextClient(api_key)
+    return CustomYextClient(api_key)
 
 
 @st.cache_resource
@@ -22,14 +22,16 @@ def init_dsg_client(api_key):
 
 
 def search_request(client, query, experience_key, vertical_key):
-    return client.search_answers_vertical(query=query, experience_key=experience_key, vertical_key=vertical_key)
+    return client.search_answers_vertical(
+        query=query, experience_key=experience_key, vertical_key=vertical_key
+    )
 
 
-def clean_search_results(dsg_client, segment, prompt="clean_segment_prompt.md"):
+def clean_search_results(dsg_client, results, prompt="clean_segment_prompt.md"):
     with open(prompt, "r") as f:
         prompt = f.read()
     
-    prompt = prompt.format(segment=segment)
+    prompt = prompt.format(results=results)
     
     cleaned_results = dsg_client.chat_completion(
         model="gpt-3.5-turbo",
@@ -109,7 +111,7 @@ def regular_direct_answer_card(direct_answer, element):
     return element.write(template, unsafe_allow_html=True)
 
 
-def render_results(client, query, demo, vector=True):
+def render_results(query, demo, vector=True):
 
     if vector:
         vertical_key = demo["vertical_key"]
@@ -120,7 +122,7 @@ def render_results(client, query, demo, vector=True):
 
     # Get search results
     start = time.time()
-    response = search_request(client, query, demo["experience_key"], vertical_key)
+    response = search_request(demo["client"], query, demo["experience_key"], vertical_key)
     end = time.time()
     response_time = end - start
 
@@ -134,6 +136,7 @@ def render_results(client, query, demo, vector=True):
     # Direct answer placeholder
     placeholder = st.empty()
     
+    # Render results
     st.write("---")
     for result in results:
         result_card(result)
@@ -142,12 +145,13 @@ def render_results(client, query, demo, vector=True):
     return response, placeholder
 
 
-def render_direct_answer(response, element, chat_client=None):
+def render_direct_answer(response, element, demo):
+    
     # Get direct answer
-    if chat_client:
+    if demo["chat_client"]:
         with element.container():
             with st.spinner("Generating Chat Direct Answer..."):
-                direct_answer = chat_client.chat_message(query, response, bot_id=demo["bot_id"])
+                direct_answer = demo["chat_client"].chat_message(query, response, bot_id=demo["bot_id"])
         chat_direct_answer_card(direct_answer, element)
     else:
         direct_answer = response["response"].get("directAnswer", None)
@@ -184,7 +188,8 @@ DEMOS = [
         "name": "Samsung Troubleshooting Guides",
         "api_key": st.secrets["samsung-troubleshooting-search"]["api_key"],
         "chat_api_key": st.secrets["samsung-troubleshooting-search"]["chat_api_key"],
-        "bot_id": None,
+        "bot_id": "samsung-troubleshooting-search",
+        "goal_id": "ANSWER_QUESTION",
         "experience_key": "samsung-troubleshooting-search",
         "vertical_key": "guides",
         "current_vertical_key": "guides_current",
@@ -226,6 +231,12 @@ DEMOS = [
     }
 ]
 
+# Initialize clients
+for demo in DEMOS:
+    demo["client"] = init_yext_client(demo["api_key"])
+    demo["dsg_client"] = init_dsg_client(demo["api_key"]) if demo["body_fields"] else None
+    demo["chat_client"] = init_yext_client(demo["chat_api_key"]) if demo["chat_api_key"] else None
+
 # Select demo
 st.sidebar.write("## Select Demo")
 demo = st.sidebar.selectbox(label="Select Demo", options=DEMOS, format_func=lambda x: x["name"])
@@ -234,14 +245,6 @@ demo = st.sidebar.selectbox(label="Select Demo", options=DEMOS, format_func=lamb
 show_current = st.sidebar.checkbox("Compare Non-Vector Results", value=False, disabled=not demo["current_vertical_key"])
 chat_direct_answer = st.sidebar.checkbox("Generate Chat Direct Answer", value=False, disabled=not demo["chat_api_key"])
 # gpt_cleaning = st.sidebar.checkbox("Use GPT Cleaning", value=False)
-
-# Initialize clients
-client = init_yext_client(demo["api_key"])
-# dsg_client = init_dsg_client(demo["api_key"])
-if chat_direct_answer:
-    chat_client = init_yext_client(demo["chat_api_key"])
-else:
-    chat_client = None
 
 # Query input
 query = st.text_input(label=f"Search {demo['name']}:", value=demo["default_search"])
@@ -254,18 +257,22 @@ if query:
         # Render results
         with vector:
             st.write("### Vector Document Search")
-            vector_response, vector_placeholder = render_results(client, query, demo, True)
+            vector_response, vector_placeholder = render_results(query, demo, True)
 
         with current:
             st.write("### Non-Vector Search")
-            current_response, current_placeholder = render_results(client, query, demo, False)
+            current_response, current_placeholder = render_results(query, demo, False)
 
         # Render direct answers
         with vector:
-            render_direct_answer(vector_response, vector_placeholder, chat_client=chat_client)
+            results = vector_response["response"].get("results", [])
+            if len(results) > 0:
+                render_direct_answer(vector_response, vector_placeholder, demo)
         
         with current:
-            render_direct_answer(current_response, current_placeholder, chat_client=chat_client)
+            results = current_response["response"].get("results", [])
+            if len(results) > 0:
+                render_direct_answer(current_response, current_placeholder, demo)
 
         # Write API response
         st.sidebar.write("## API Responses")
@@ -276,10 +283,10 @@ if query:
 
     else:
         # Render results
-        response, placeholder = render_results(client, query, demo, True)
+        response, placeholder = render_results(query, demo, True)
 
         # Render direct answer
-        render_direct_answer(response, placeholder, chat_client=chat_client)
+        render_direct_answer(response, placeholder, demo)
 
         # Write API response
         st.sidebar.write("## API Responses")

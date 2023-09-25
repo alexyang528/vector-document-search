@@ -1,13 +1,12 @@
 import requests
-from typing import List, Optional
-from yext import YextClient
+from typing import Optional
 
 
-class SuperYextClient(YextClient):
+class CustomYextClient():
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, api_key):
         self.v = "20230601"
+        self.api_key = api_key
         self.default_params = {"api_key": self.api_key, "v": self.v}
 
 
@@ -16,6 +15,8 @@ class SuperYextClient(YextClient):
         query: str,
         search_results: dict,
         bot_id: str,
+        goal_id: str = "ANSWER_QUESTION",
+        step_indices: list = [1],
     ):
         base_url = f"https://liveapi-us2.yext.com/v2/accounts/me/chat/{bot_id}/message"
         request_body = {
@@ -30,10 +31,10 @@ class SuperYextClient(YextClient):
                 },
             ],
             "notes": {
-                "currentGoal": "ANSWER_QUESTION",
+                "currentGoal": goal_id,
                 "queryResult": search_results,
                 "searchQuery": query,
-                "currentStepIndices": [1],
+                "currentStepIndices": step_indices,
             },
             "promptPackage": "stable",
             "version": "STAGING"
@@ -52,12 +53,8 @@ class SuperYextClient(YextClient):
         vertical_key: str,
         locale: str = "en",
         version: str = "PRODUCTION",
-        headers: Optional[dict] = ...,
     ):
-        """
-        This method had to be reimplemented because there is a bug in the Yext Python SDK.
-        """
-        # The SDK pointed to the wrong thing!
+
         endpoint = "https://liveapi-us2.yext.com/v2/accounts/me/search/vertical/query"
         params = {
             "input": query,
