@@ -1,3 +1,4 @@
+import asyncio
 import time
 import streamlit as st
 from clients.yext_client import SuperYextClient
@@ -68,15 +69,17 @@ def regular_result_card(result):
     return st.write(template, unsafe_allow_html=True)
 
 
-def direct_answer_card(direct_answer, is_chat=False):
-    if is_chat:
-        template = f"""
-            <div style="border-radius: 5px; background-color: #ADD8E6; padding: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);">
-                <div style="font-size: 18px; font-weight:bold;">{direct_answer}</div>
-            </div>
-        """
-        return st.write(template, unsafe_allow_html=True)
+def chat_direct_answer_card(direct_answer, element):
+    template = f"""
+        <div style="border-radius: 5px; background-color: #ADD8E6; padding: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);">
+            <div style="font-size: 18px; font-weight:bold;">{direct_answer}</div>
+        </div>
+    """
+    return element.write(template, unsafe_allow_html=True)
 
+
+def regular_direct_answer_card(direct_answer, element):
+    
     snippet_value = direct_answer['answer']['snippet']['value']
     offset = direct_answer['answer']['snippet']['matchedSubstrings'][0]['offset']
     length = direct_answer['answer']['snippet']['matchedSubstrings'][0]['length']
@@ -101,10 +104,10 @@ def direct_answer_card(direct_answer, is_chat=False):
         </div>
     """
 
-    return st.write(template, unsafe_allow_html=True)
+    return element.write(template, unsafe_allow_html=True)
 
 
-def render_results(client, query, demo, vector=True):
+def render_results(client, query, demo, vector=True, chat_client=None):
 
     if vector:
         vertical_key = demo["vertical_key"]
@@ -122,13 +125,32 @@ def render_results(client, query, demo, vector=True):
     # Parse results
     results = response["response"].get("results", [])
     results_count = response["response"].get("resultsCount", 0)
-    direct_answer = response["response"].get("directAnswer", None)
 
-    # Render results
+    # Write result count and time
     st.write(f"_{results_count} results ({response_time:.2f} seconds)_")
-    if direct_answer:
-        direct_answer_card(direct_answer)
+
+    # Direct answer placeholder
+    placeholder = st.empty()
+    
+    st.write("---")
+    for result in results:
+        result_card(result)
         st.write("---")
+    
+    return response, placeholder
+
+
+def render_direct_answer(response, element, chat_client=None):
+    # Get direct answer
+    if chat_client:
+        with element.container():
+            with st.spinner("Generating Chat Direct Answer..."):
+                direct_answer = chat_client.chat_message(query, response, bot_id=demo["bot_id"])
+        chat_direct_answer_card(direct_answer, element)
+    else:
+        direct_answer = response["response"].get("directAnswer", None)
+        if direct_answer:
+            regular_direct_answer_card(direct_answer, element)
 
         # Logic to boost the direct answer result to the top
         # related_result = direct_answer["relatedItem"]["data"]["uid"]
@@ -139,12 +161,8 @@ def render_results(client, query, demo, vector=True):
         #         st.write("---")
         #         results.remove(result)
         #         break
-
-    for result in results:
-        result_card(result)
-        st.write("---")
     
-    return response
+    return
 
 
 DEMOS = [
@@ -152,6 +170,7 @@ DEMOS = [
         "name": "Harry Potter Books",
         "api_key": st.secrets["book-search"]["api_key"],
         "chat_api_key": st.secrets["book-search"]["chat_api_key"],
+        "bot_id": "book-search",
         "experience_key": "book-search",
         "vertical_key": "books",
         "current_vertical_key": "books_current",
@@ -162,6 +181,7 @@ DEMOS = [
         "name": "Samsung Troubleshooting Guides",
         "api_key": st.secrets["samsung-troubleshooting-search"]["api_key"],
         "chat_api_key": st.secrets["samsung-troubleshooting-search"]["chat_api_key"],
+        "bot_id": None,
         "experience_key": "samsung-troubleshooting-search",
         "vertical_key": "guides",
         "current_vertical_key": "guides_current",
@@ -172,6 +192,7 @@ DEMOS = [
         "name": "Iceberg Reports",
         "api_key": st.secrets["iceberg-reports"]["api_key"],
         "chat_api_key": None,
+        "bot_id": None,
         "experience_key": "iceberg-iq-report-search",
         "vertical_key": "reports",
         "current_vertical_key": None,
@@ -182,6 +203,7 @@ DEMOS = [
         "name": "Cox Manuals",
         "api_key": st.secrets["cox-manuals"]["api_key"],
         "chat_api_key": None,
+        "bot_id": None,
         "experience_key": "cox-residential-answers-for-chat",
         "vertical_key": "manuals_doc_search",
         "current_vertical_key": None,
@@ -192,6 +214,7 @@ DEMOS = [
         "name": "Hitchhikers",
         "api_key": st.secrets["hitchhikers"]["api_key"],
         "chat_api_key": None,
+        "bot_id": None,
         "experience_key": "yext-help-hitchhikers-vector-search",
         "vertical_key": "content",
         "current_vertical_key": "content_current",
@@ -206,13 +229,16 @@ demo = st.sidebar.selectbox(label="Select Demo", options=DEMOS, format_func=lamb
 
 # Populate other values
 show_current = st.sidebar.checkbox("Compare Non-Vector Results", value=False, disabled=not demo["current_vertical_key"])
-# chat_direct_answer = st.sidebar.checkbox("Generate Chat Direct Answer", value=False, disabled=not demo["chat_api_key"])
+chat_direct_answer = st.sidebar.checkbox("Generate Chat Direct Answer", value=False, disabled=not demo["chat_api_key"])
 # gpt_cleaning = st.sidebar.checkbox("Use GPT Cleaning", value=False)
 
 # Initialize clients
 client = init_yext_client(demo["api_key"])
 # dsg_client = init_dsg_client(demo["api_key"])
-# chat_client = init_yext_client(demo["chat_api_key"])
+if chat_direct_answer:
+    chat_client = init_yext_client(demo["chat_api_key"])
+else:
+    chat_client = None
 
 # Query input
 query = st.text_input(label=f"Search {demo['name']}:", value=demo["default_search"])
@@ -224,11 +250,17 @@ if query:
 
         with vector:
             st.write("### Vector Document Search")
-            vector_response = render_results(client, query, demo)
+            vector_response, vector_placeholder = render_results(client, query, demo, vector=True, chat_client=chat_client)
 
         with current:
             st.write("### Non-Vector Search")
-            current_response = render_results(client, query, demo, vector=False)
+            current_response, current_placeholder = render_results(client, query, demo, vector=False, chat_client=chat_client)
+
+        with vector:
+            render_direct_answer(vector_response, vector_placeholder, chat_client=chat_client)
+        
+        with current:
+            render_direct_answer(current_response, current_placeholder, chat_client=chat_client)
 
         # Write API response
         st.sidebar.write("## API Responses")
@@ -238,7 +270,8 @@ if query:
             st.write(current_response)
 
     else:
-        response = render_results(client, query, demo)
+        response, placeholder = render_results(client, query, demo, vector=True, chat_client=chat_client)
+        render_direct_answer(response, placeholder, chat_client=chat_client)
 
         # Write API response
         st.sidebar.write("## API Responses")
