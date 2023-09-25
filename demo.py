@@ -151,7 +151,11 @@ def render_direct_answer(response, element, demo):
     if demo["chat_client"]:
         with element.container():
             with st.spinner("Generating Chat Direct Answer..."):
-                direct_answer = demo["chat_client"].chat_message(query, response, bot_id=demo["bot_id"])
+                direct_answer = demo["chat_client"].chat_message(
+                    query,
+                    response,
+                    **demo["chat_params"]
+                )
         chat_direct_answer_card(direct_answer, element)
     else:
         direct_answer = response["response"].get("directAnswer", None)
@@ -176,57 +180,60 @@ DEMOS = [
         "name": "Harry Potter Books",
         "api_key": st.secrets["book-search"]["api_key"],
         "chat_api_key": st.secrets["book-search"]["chat_api_key"],
-        "bot_id": "book-search",
-        "goal_id": "ANSWER_QUESTION",
+        "chat_params": {
+            "bot_id": "book-search",
+            "goal_id": "ANSWER_QUESTION",
+            "step_indices": [1],
+        },
         "experience_key": "book-search",
         "vertical_key": "books",
         "current_vertical_key": "books_current",
-        "body_fields": [["c_file", "s_content"]],
         "default_search": "Who is Albus Dumbledore?",
     },
     {
         "name": "Samsung Troubleshooting Guides",
         "api_key": st.secrets["samsung-troubleshooting-search"]["api_key"],
         "chat_api_key": st.secrets["samsung-troubleshooting-search"]["chat_api_key"],
-        "bot_id": "samsung-troubleshooting-search",
-        "goal_id": "ANSWER_QUESTION",
+        "chat_params": {
+            "bot_id": "samsung-troubleshooting-guides",
+            "goal_id": "ANSWER_QUESTION",
+            "step_indices": [1],
+        },
         "experience_key": "samsung-troubleshooting-search",
         "vertical_key": "guides",
         "current_vertical_key": "guides_current",
-        "body_fields": [["bodyV2", "markdown"]],
         "default_search": ""
     },
     {
         "name": "Iceberg Reports",
         "api_key": st.secrets["iceberg-reports"]["api_key"],
         "chat_api_key": None,
-        "bot_id": None,
         "experience_key": "iceberg-iq-report-search",
         "vertical_key": "reports",
         "current_vertical_key": None,
-        "body_fields": [],
         "default_search": "",
     },
     {
         "name": "Cox Manuals",
         "api_key": st.secrets["cox-manuals"]["api_key"],
-        "chat_api_key": None,
-        "bot_id": None,
+        "chat_api_key": st.secrets["cox-manuals"]["chat_api_key"],
+        "chat_params": {
+            "bot_id": "cox-manuals-chatbot",
+            "goal_id": "ANSWER_QUESTION",
+            "step_indices": [1],
+        },
         "experience_key": "cox-residential-answers-for-chat",
         "vertical_key": "manuals_doc_search",
         "current_vertical_key": None,
-        "body_fields": [],
         "default_search": "",
     },
     {
         "name": "Hitchhikers",
         "api_key": st.secrets["hitchhikers"]["api_key"],
         "chat_api_key": None,
-        "bot_id": None,
         "experience_key": "yext-help-hitchhikers-vector-search",
         "vertical_key": "content",
         "current_vertical_key": "content_current",
-        "body_fields": [["body"], ["description"]],
         "default_search": "",
     }
 ]
