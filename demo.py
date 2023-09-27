@@ -91,7 +91,7 @@ def regular_direct_answer_card(direct_answer, element):
         answer_value = direct_answer['answer']['value']
     else:
         answer_value = snippet_value[offset:offset+length]
-    answer_value = answer_value.replace('\n', '')
+    answer_value = answer_value.replace('\n', ' ')
     book_name = direct_answer['relatedItem']['data']['fieldValues']['name']
 
     template = f"""
