@@ -245,6 +245,34 @@ DEMOS = [
         "vertical_key": "content",
         "current_vertical_key": "content_current",
         "default_search": "",
+    },
+    {
+        "name": "Ski Warehouse",
+        "api_key": st.secrets["ski-warehouse"]["api_key"],
+        "chat_api_key": st.secrets["ski-warehouse"]["chat_api_key"],
+        "chat_params": {
+            "bot_id": "generic-question-answerer",
+            "goal_id": "ANSWER_QUESTION",
+            "step_indices": [0],
+        },
+        "experience_key": "yext-ski-warehouse-vector",
+        "vertical_key": "content",
+        "current_vertical_key": "content-current",
+        "default_search": "What are the vibes like at Vail?"
+    },
+    {
+        "name": "Healthcare DXP Demo",
+        "api_key": st.secrets["healthcare-dxp-demo"]["api_key"],
+        "chat_api_key": st.secrets["healthcare-dxp-demo"]["chat_api_key"],
+        "chat_params": {
+            "bot_id": "generic-question-answerer",
+            "goal_id": "ANSWER_QUESTION",
+            "step_indices": [0],
+        },
+        "experience_key": "blog-and-document-search",
+        "vertical_key": "content",
+        "current_vertical_key": "content_nonvector",
+        "default_search": "",
     }
 ]
 
