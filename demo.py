@@ -21,10 +21,9 @@ def init_dsg_client(api_key):
     return DSGClient(api_key)
 
 
-def search_request(client, query, experience_key, vertical_key):
-    return client.search_answers_vertical(
-        query=query, experience_key=experience_key, vertical_key=vertical_key
-    )
+def search_request(client, query, experience_key, vertical_key, endpoint="https://liveapi-us2.yext.com/v2/accounts/me/search/vertical/query"):
+    response = client.search_answers_vertical(query, experience_key, vertical_key, endpoint=endpoint)
+    return response
 
 
 def clean_search_results(dsg_client, results, prompt="clean_segment_prompt.md"):
@@ -111,18 +110,27 @@ def regular_direct_answer_card(direct_answer, element):
     return element.write(template, unsafe_allow_html=True)
 
 
-def render_results(query, demo, vector=True):
+def render_results(query, demo, client="vector_client"):
 
-    if vector:
+    if client == "vector_client":
         vertical_key = demo["vertical_key"]
+        experience_key = demo["experience_key"]
         result_card = vector_result_card
-    else:
+        endpoint = "https://liveapi-us2.yext.com/v2/accounts/me/search/vertical/query"
+    elif client == "current_client":
         vertical_key = demo["current_vertical_key"]
+        experience_key = demo["experience_key"]
         result_card = regular_result_card
+        endpoint = "https://liveapi-us2.yext.com/v2/accounts/me/search/vertical/query"
+    elif client == "hybrid_client":
+        vertical_key = "harry_potter"
+        experience_key = "doc-search"
+        result_card = vector_result_card
+        endpoint = "https://funny-raptor-good.ngrok-free.app/v2/accounts/me/answers/vertical/query"
 
     # Get search results
     start = time.time()
-    response = search_request(demo["client"], query, demo["experience_key"], vertical_key)
+    response = search_request(demo[client], query, experience_key, vertical_key, endpoint)
     end = time.time()
     response_time = end - start
 
@@ -180,6 +188,7 @@ DEMOS = [
         "name": "Harry Potter Books",
         "api_key": st.secrets["book-search"]["api_key"],
         "chat_api_key": st.secrets["book-search"]["chat_api_key"],
+        "hybrid_api_key": "a1ed3828b792e4dbad4785c482c90e1b",
         "chat_params": {
             "bot_id": "book-search",
             "goal_id": "ANSWER_QUESTION",
@@ -194,6 +203,7 @@ DEMOS = [
         "name": "Samsung Troubleshooting Guides",
         "api_key": st.secrets["samsung-troubleshooting-search"]["api_key"],
         "chat_api_key": st.secrets["samsung-troubleshooting-search"]["chat_api_key"],
+        "hybrid_api_key": None,
         "chat_params": {
             "bot_id": "generic-question-answerer",
             "goal_id": "ANSWER_QUESTION",
@@ -202,12 +212,13 @@ DEMOS = [
         "experience_key": "samsung-troubleshooting-search",
         "vertical_key": "guides",
         "current_vertical_key": "guides_current",
-        "default_search": ""
+        "default_search": "",
     },
     {
         "name": "Iceberg Reports",
         "api_key": st.secrets["iceberg-reports"]["api_key"],
         "chat_api_key": st.secrets["iceberg-reports"]["chat_api_key"],
+        "hybrid_api_key": None,
         "chat_params": {
             "bot_id": "generic-question-answerer",
             "goal_id": "ANSWER_QUESTION",
@@ -222,6 +233,7 @@ DEMOS = [
         "name": "Cox Manuals",
         "api_key": st.secrets["cox-manuals"]["api_key"],
         "chat_api_key": st.secrets["cox-manuals"]["chat_api_key"],
+        "hybrid_api_key": None,
         "chat_params": {
             "bot_id": "generic-question-answerer",
             "goal_id": "ANSWER_QUESTION",
@@ -236,6 +248,7 @@ DEMOS = [
         "name": "Hitchhikers",
         "api_key": st.secrets["hitchhikers"]["api_key"],
         "chat_api_key": st.secrets["hitchhikers"]["chat_api_key"],
+        "hybrid_api_key": None,
         "chat_params": {
             "bot_id": "generic-question-answerer",
             "goal_id": "ANSWER_QUESTION",
@@ -250,6 +263,7 @@ DEMOS = [
         "name": "Ski Warehouse",
         "api_key": st.secrets["ski-warehouse"]["api_key"],
         "chat_api_key": st.secrets["ski-warehouse"]["chat_api_key"],
+        "hybrid_api_key": None,
         "chat_params": {
             "bot_id": "generic-question-answerer",
             "goal_id": "ANSWER_QUESTION",
@@ -258,20 +272,21 @@ DEMOS = [
         "experience_key": "yext-ski-warehouse-vector",
         "vertical_key": "content",
         "current_vertical_key": "content-current",
-        "default_search": "What are the vibes like at Vail?"
+        "default_search": "What are the vibes like at Vail?",
     },
     {
         "name": "Healthcare DXP Demo",
         "api_key": st.secrets["healthcare-dxp-demo"]["api_key"],
         "chat_api_key": st.secrets["healthcare-dxp-demo"]["chat_api_key"],
+        "hybrid_api_key": None,
         "chat_params": {
             "bot_id": "generic-question-answerer",
             "goal_id": "ANSWER_QUESTION",
             "step_indices": [0],
         },
-        "experience_key": "blog-and-document-search",
-        "vertical_key": "content",
-        "current_vertical_key": "content_nonvector",
+        "experience_key": "handbook-search",
+        "vertical_key": "handbooks",
+        "current_vertical_key": "handbooks_nonvector",
         "default_search": "",
     }
 ]
@@ -283,57 +298,76 @@ demo = st.sidebar.selectbox(label="Select Demo", options=DEMOS, format_func=lamb
 
 # Populate other values
 show_current = st.sidebar.checkbox("Compare Non-Vector Results", value=False, disabled=not demo["current_vertical_key"])
+show_hybrid = st.sidebar.checkbox("Compare Hybrid Results", value=False, disabled=not demo["hybrid_api_key"])
 chat_direct_answer = st.sidebar.checkbox("Generate Chat Direct Answer", value=False, disabled=not demo["chat_api_key"])
 # gpt_cleaning = st.sidebar.checkbox("Use GPT Cleaning", value=False)
 
 # Initialize clients
-demo["client"] = init_yext_client(demo["api_key"])
+demo["vector_client"] = init_yext_client(demo["api_key"])
+demo["current_client"] = init_yext_client(demo["api_key"])
+demo["hybrid_client"] = init_yext_client(demo["hybrid_api_key"])
 # demo["dsg_client"] = init_dsg_client(demo["api_key"])
 demo["chat_client"] = init_yext_client(demo["chat_api_key"]) if chat_direct_answer and demo["chat_api_key"] else None
 
 # Query input
 query = st.text_input(label=f"Search {demo['name']}:", value=demo["default_search"])
 
+# Define columns
+if show_current:
+    if show_hybrid:
+        vector, current, hybrid = st.columns(3, gap="medium")
+    else:
+        vector, current = st.columns(2, gap="medium")
+else:
+    if show_hybrid:
+        vector, hybrid = st.columns(2, gap="medium")
+    else:
+        vector,_ = st.columns([1, 0.001], gap="small")
+
 # Fetch and render results
 if query:
+
+    # Render results
+    with vector:
+        st.write("### Vector Document Search")
+        vector_response, vector_placeholder = render_results(query, demo)
+
     if show_current:
-        vector, current = st.columns(2, gap="medium")
-
-        # Render results
-        with vector:
-            st.write("### Vector Document Search")
-            vector_response, vector_placeholder = render_results(query, demo, True)
-
         with current:
             st.write("### Non-Vector Search")
-            current_response, current_placeholder = render_results(query, demo, False)
+            current_response, current_placeholder = render_results(query, demo, client="current_client")
+    
+    if show_hybrid:
+        with hybrid:
+            st.write("### Hybrid Search")
+            hybrid_response, hybrid_placeholder = render_results(query, demo, client="hybrid_client")
 
-        # Render direct answers
-        with vector:
-            results = vector_response["response"].get("results", [])
-            if len(results) > 0:
-                render_direct_answer(vector_response, vector_placeholder, demo)
-        
+    # Render direct answers
+    with vector:
+        results = vector_response["response"].get("results", [])
+        render_direct_answer(vector_response, vector_placeholder, demo)
+    
+    if show_current:
         with current:
             results = current_response["response"].get("results", [])
-            if len(results) > 0:
-                render_direct_answer(current_response, current_placeholder, demo)
+            render_direct_answer(current_response, current_placeholder, demo)
+        
+    if show_hybrid:
+        with hybrid:
+            results = hybrid_response["response"].get("results", [])
+            render_direct_answer(hybrid_response, hybrid_placeholder, demo)
 
-        # Write API response
-        st.sidebar.write("## API Responses")
-        with st.sidebar.expander("View Vector Response"):
-            st.write(vector_response)
+    # Write API response
+    st.sidebar.write("## API Responses")
+
+    with st.sidebar.expander("View Vector Response"):
+        st.write(vector_response)
+    
+    if show_current:
         with st.sidebar.expander("View Non-Vector Response"):
             st.write(current_response)
-
-    else:
-        # Render results
-        response, placeholder = render_results(query, demo, True)
-
-        # Render direct answer
-        render_direct_answer(response, placeholder, demo)
-
-        # Write API response
-        st.sidebar.write("## API Responses")
-        with st.sidebar.expander("View Response"):
-            st.write(response)
+    
+    if show_hybrid:
+        with st.sidebar.expander("View Hybrid Response"):
+            st.write(hybrid_response)
+    

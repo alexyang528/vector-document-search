@@ -52,10 +52,10 @@ class CustomYextClient():
         experience_key: str,
         vertical_key: str,
         locale: str = "en",
-        version: str = "PRODUCTION",
+        version: str = "STAGING",
+        endpoint: str = "https://liveapi-us2.yext.com/v2/accounts/me/search/vertical/query"
     ):
 
-        endpoint = "https://liveapi-us2.yext.com/v2/accounts/me/search/vertical/query"
         params = {
             "input": query,
             "api_key": self.api_key,
@@ -65,5 +65,6 @@ class CustomYextClient():
             "version": version,
             "verticalKey": vertical_key,
         }
-        response = requests.get(endpoint, params=params).json()
-        return response
+        response = requests.get(endpoint, params=params)
+        response.raise_for_status()
+        return response.json()
