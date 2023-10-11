@@ -4,16 +4,16 @@ from clients.yext_client import CustomYextClient
 from clients.dsg_client import DSGClient
 
 st.set_page_config(
-    page_title="Demo: Vector Document Search",
+    page_title="Demo: Yext Vector Search and Generative Answering",
     page_icon="🔍",
     layout="wide",
     initial_sidebar_state="expanded",
 )
-st.title("Demo: Vector Document Search")
+st.title("Demo: Yext Vector Search and Generative Answering")
 
 @st.cache_resource
-def init_yext_client(api_key):
-    return CustomYextClient(api_key)
+def init_yext_client(api_key, environment=None):
+    return CustomYextClient(api_key, environment)
 
 
 @st.cache_resource
@@ -21,7 +21,7 @@ def init_dsg_client(api_key):
     return DSGClient(api_key)
 
 
-def search_request(client, query, experience_key, vertical_key, endpoint="https://liveapi-us2.yext.com/v2/accounts/me/search/vertical/query"):
+def search_request(client, query, experience_key, vertical_key, endpoint=None):
     response = client.search_answers_vertical(query, experience_key, vertical_key, endpoint=endpoint)
     return response
 
@@ -42,18 +42,25 @@ def clean_search_results(dsg_client, results, prompt="clean_segment_prompt.md"):
 
 def vector_result_card(result):
     name = result["data"]["name"]
-    segment = "... " + result["segment"]["text"].strip() + " ..."
+
+    # Drop name segments
+    if result["segment"]["text"] == name:
+        return
+    
+    segment = result["segment"]["text"].strip()
     score = result["segment"]["score"]
 
     template = f"""
     <div style="border-radius: 5px; background-color: #f2f2f2; padding: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);">
-        <div style="font-size: 18px; font-weight: bold;">{name}</div>
+        <p style="font-size: 18px; font-weight: bold;">{name}</p>
         <p style="margin: 10px 0;">{segment}</p>
         <p style="text-align: right;"><i>Score: {score}</i></p>
     </div>
     """
 
-    return st.write(template, unsafe_allow_html=True)
+    st.write(template, unsafe_allow_html=True)
+    st.write("---")
+    return 
 
 
 def regular_result_card(result):
@@ -116,12 +123,12 @@ def render_results(query, demo, client="vector_client"):
         vertical_key = demo["vertical_key"]
         experience_key = demo["experience_key"]
         result_card = vector_result_card
-        endpoint = "https://liveapi-us2.yext.com/v2/accounts/me/search/vertical/query"
+        endpoint = None
     elif client == "current_client":
         vertical_key = demo["current_vertical_key"]
         experience_key = demo["experience_key"]
         result_card = regular_result_card
-        endpoint = "https://liveapi-us2.yext.com/v2/accounts/me/search/vertical/query"
+        endpoint = None
     elif client == "hybrid_client":
         vertical_key = "harry_potter"
         experience_key = "doc-search"
@@ -130,7 +137,7 @@ def render_results(query, demo, client="vector_client"):
 
     # Get search results
     start = time.time()
-    response = search_request(demo[client], query, experience_key, vertical_key, endpoint)
+    response = search_request(demo[client], query, experience_key, vertical_key, endpoint=endpoint)
     end = time.time()
     response_time = end - start
 
@@ -148,7 +155,6 @@ def render_results(query, demo, client="vector_client"):
     st.write("---")
     for result in results:
         result_card(result)
-        st.write("---")
     
     return response, placeholder
 
@@ -158,7 +164,7 @@ def render_direct_answer(response, element, demo):
     # Get direct answer
     if demo["chat_client"]:
         with element.container():
-            with st.spinner("Generating Chat Direct Answer..."):
+            with st.spinner("Generating Answer..."):
                 direct_answer = demo["chat_client"].chat_message(
                     query,
                     response,
@@ -179,11 +185,27 @@ def render_direct_answer(response, element, demo):
         #         st.write("---")
         #         results.remove(result)
         #         break
-    
+
     return
 
 
 DEMOS = [
+    {
+        "name": "CNO File",
+        "api_key": st.secrets["cno"]["api_key"],
+        "chat_api_key": st.secrets["cno"]["chat_api_key"],
+        "hybrid_api_key": None,
+        "chat_params": {
+            "bot_id": "generic-question-answerer",
+            "goal_id": "ANSWER_QUESTION",
+            "step_indices": [0],
+        },
+        "experience_key": "answers",
+        "vertical_key": "files",
+        "current_vertical_key": "files_old",
+        "default_search": "",
+        "environment": "SANDBOX"
+    },
     {
         "name": "Harry Potter Books",
         "api_key": st.secrets["book-search"]["api_key"],
@@ -197,98 +219,121 @@ DEMOS = [
         "experience_key": "book-search",
         "vertical_key": "books",
         "current_vertical_key": "books_current",
-        "default_search": "Who is Albus Dumbledore?",
-    },
-    {
-        "name": "Samsung Troubleshooting Guides",
-        "api_key": st.secrets["samsung-troubleshooting-search"]["api_key"],
-        "chat_api_key": st.secrets["samsung-troubleshooting-search"]["chat_api_key"],
-        "hybrid_api_key": None,
-        "chat_params": {
-            "bot_id": "generic-question-answerer",
-            "goal_id": "ANSWER_QUESTION",
-            "step_indices": [0],
-        },
-        "experience_key": "samsung-troubleshooting-search",
-        "vertical_key": "guides",
-        "current_vertical_key": "guides_current",
         "default_search": "",
+        "environment": None,
     },
-    {
-        "name": "Iceberg Reports",
-        "api_key": st.secrets["iceberg-reports"]["api_key"],
-        "chat_api_key": st.secrets["iceberg-reports"]["chat_api_key"],
-        "hybrid_api_key": None,
-        "chat_params": {
-            "bot_id": "generic-question-answerer",
-            "goal_id": "ANSWER_QUESTION",
-            "step_indices": [0],
-        },
-        "experience_key": "iceberg-iq-report-search",
-        "vertical_key": "reports",
-        "current_vertical_key": None,
-        "default_search": "",
-    },
-    {
-        "name": "Cox Manuals",
-        "api_key": st.secrets["cox-manuals"]["api_key"],
-        "chat_api_key": st.secrets["cox-manuals"]["chat_api_key"],
-        "hybrid_api_key": None,
-        "chat_params": {
-            "bot_id": "generic-question-answerer",
-            "goal_id": "ANSWER_QUESTION",
-            "step_indices": [0],
-        },
-        "experience_key": "cox-residential-answers-for-chat",
-        "vertical_key": "manuals_doc_search",
-        "current_vertical_key": None,
-        "default_search": "",
-    },
-    {
-        "name": "Hitchhikers",
-        "api_key": st.secrets["hitchhikers"]["api_key"],
-        "chat_api_key": st.secrets["hitchhikers"]["chat_api_key"],
-        "hybrid_api_key": None,
-        "chat_params": {
-            "bot_id": "generic-question-answerer",
-            "goal_id": "ANSWER_QUESTION",
-            "step_indices": [0],
-        },
-        "experience_key": "yext-help-hitchhikers-vector-search",
-        "vertical_key": "content",
-        "current_vertical_key": "content_current",
-        "default_search": "",
-    },
-    {
-        "name": "Ski Warehouse",
-        "api_key": st.secrets["ski-warehouse"]["api_key"],
-        "chat_api_key": st.secrets["ski-warehouse"]["chat_api_key"],
-        "hybrid_api_key": None,
-        "chat_params": {
-            "bot_id": "generic-question-answerer",
-            "goal_id": "ANSWER_QUESTION",
-            "step_indices": [0],
-        },
-        "experience_key": "yext-ski-warehouse-vector",
-        "vertical_key": "content",
-        "current_vertical_key": "content-current",
-        "default_search": "What are the vibes like at Vail?",
-    },
-    {
-        "name": "Healthcare DXP Demo",
-        "api_key": st.secrets["healthcare-dxp-demo"]["api_key"],
-        "chat_api_key": st.secrets["healthcare-dxp-demo"]["chat_api_key"],
-        "hybrid_api_key": None,
-        "chat_params": {
-            "bot_id": "generic-question-answerer",
-            "goal_id": "ANSWER_QUESTION",
-            "step_indices": [0],
-        },
-        "experience_key": "handbook-search",
-        "vertical_key": "handbooks",
-        "current_vertical_key": "handbooks_nonvector",
-        "default_search": "",
-    }
+    # {
+    #     "name": "Samsung Troubleshooting Guides",
+    #     "api_key": st.secrets["samsung-troubleshooting-search"]["api_key"],
+    #     "chat_api_key": st.secrets["samsung-troubleshooting-search"]["chat_api_key"],
+    #     "hybrid_api_key": None,
+    #     "chat_params": {
+    #         "bot_id": "generic-question-answerer",
+    #         "goal_id": "ANSWER_QUESTION",
+    #         "step_indices": [0],
+    #     },
+    #     "experience_key": "samsung-troubleshooting-search",
+    #     "vertical_key": "guides",
+    #     "current_vertical_key": "guides_current",
+    #     "default_search": "",
+    #     "environment": None,
+    # },
+    # {
+    #     "name": "Iceberg Reports",
+    #     "api_key": st.secrets["iceberg-reports"]["api_key"],
+    #     "chat_api_key": st.secrets["iceberg-reports"]["chat_api_key"],
+    #     "hybrid_api_key": None,
+    #     "chat_params": {
+    #         "bot_id": "generic-question-answerer",
+    #         "goal_id": "ANSWER_QUESTION",
+    #         "step_indices": [0],
+    #     },
+    #     "experience_key": "iceberg-iq-report-search",
+    #     "vertical_key": "reports",
+    #     "current_vertical_key": None,
+    #     "default_search": "",
+    #     "environment": None,
+    # },
+    # {
+    #     "name": "Cox Manuals",
+    #     "api_key": st.secrets["cox-manuals"]["api_key"],
+    #     "chat_api_key": st.secrets["cox-manuals"]["chat_api_key"],
+    #     "hybrid_api_key": None,
+    #     "chat_params": {
+    #         "bot_id": "generic-question-answerer",
+    #         "goal_id": "ANSWER_QUESTION",
+    #         "step_indices": [0],
+    #     },
+    #     "experience_key": "cox-residential-answers-for-chat",
+    #     "vertical_key": "manuals_doc_search",
+    #     "current_vertical_key": None,
+    #     "default_search": "",
+    #     "environment": None,
+    # },
+    # {
+    #     "name": "Hitchhikers",
+    #     "api_key": st.secrets["hitchhikers"]["api_key"],
+    #     "chat_api_key": st.secrets["hitchhikers"]["chat_api_key"],
+    #     "hybrid_api_key": None,
+    #     "chat_params": {
+    #         "bot_id": "generic-question-answerer",
+    #         "goal_id": "ANSWER_QUESTION",
+    #         "step_indices": [0],
+    #     },
+    #     "experience_key": "yext-help-hitchhikers-vector-search",
+    #     "vertical_key": "content",
+    #     "current_vertical_key": "content_current",
+    #     "default_search": "",
+    #     "environment": None,
+    # },
+    # {
+    #     "name": "Ski Warehouse",
+    #     "api_key": st.secrets["ski-warehouse"]["api_key"],
+    #     "chat_api_key": st.secrets["ski-warehouse"]["chat_api_key"],
+    #     "hybrid_api_key": None,
+    #     "chat_params": {
+    #         "bot_id": "generic-question-answerer",
+    #         "goal_id": "ANSWER_QUESTION",
+    #         "step_indices": [0],
+    #     },
+    #     "experience_key": "yext-ski-warehouse-vector",
+    #     "vertical_key": "content",
+    #     "current_vertical_key": "content-current",
+    #     "default_search": "What are the vibes like at Vail?",
+    #     "environment": None,
+    # },
+    # {
+    #     "name": "Healthcare DXP Demo",
+    #     "api_key": st.secrets["healthcare-dxp-demo"]["api_key"],
+    #     "chat_api_key": st.secrets["healthcare-dxp-demo"]["chat_api_key"],
+    #     "hybrid_api_key": None,
+    #     "chat_params": {
+    #         "bot_id": "generic-question-answerer",
+    #         "goal_id": "ANSWER_QUESTION",
+    #         "step_indices": [0],
+    #     },
+    #     "experience_key": "handbook-search",
+    #     "vertical_key": "handbooks",
+    #     "current_vertical_key": "handbooks_nonvector",
+    #     "default_search": "",
+    #     "environment": None,
+    # },
+    # {
+    #     "name": "Square Support Articles",
+    #     "api_key": st.secrets["square-support"]["api_key"],
+    #     "chat_api_key": st.secrets["square-support"]["chat_api_key"],
+    #     "hybrid_api_key": None,
+    #     "chat_params": {
+    #         "bot_id": "generic-question-answerer",
+    #         "goal_id": "ANSWER_QUESTION",
+    #         "step_indices": [0],
+    #     },
+    #     "experience_key": "chat-backend-generative-answers",
+    #     "vertical_key": "articles",
+    #     "current_vertical_key": None,
+    #     "default_search": "",
+    #     "environment": None,
+    # }
 ]
 
 
@@ -298,16 +343,17 @@ demo = st.sidebar.selectbox(label="Select Demo", options=DEMOS, format_func=lamb
 
 # Populate other values
 show_current = st.sidebar.checkbox("Compare Non-Vector Results", value=False, disabled=not demo["current_vertical_key"])
-show_hybrid = st.sidebar.checkbox("Compare Hybrid Results", value=False, disabled=not demo["hybrid_api_key"])
-chat_direct_answer = st.sidebar.checkbox("Generate Chat Direct Answer", value=False, disabled=not demo["chat_api_key"])
+# show_hybrid = st.sidebar.checkbox("Compare Hybrid Results", value=False, disabled=not demo["hybrid_api_key"])
+show_hybrid = False
+chat_direct_answer = st.checkbox("Generate Answer", value=False, disabled=not demo["chat_api_key"])
 # gpt_cleaning = st.sidebar.checkbox("Use GPT Cleaning", value=False)
 
 # Initialize clients
-demo["vector_client"] = init_yext_client(demo["api_key"])
-demo["current_client"] = init_yext_client(demo["api_key"])
+demo["vector_client"] = init_yext_client(demo["api_key"], environment=demo["environment"])
+demo["current_client"] = init_yext_client(demo["api_key"], environment=demo["environment"])
 demo["hybrid_client"] = init_yext_client(demo["hybrid_api_key"])
-# demo["dsg_client"] = init_dsg_client(demo["api_key"])
-demo["chat_client"] = init_yext_client(demo["chat_api_key"]) if chat_direct_answer and demo["chat_api_key"] else None
+demo["dsg_client"] = init_dsg_client(demo["api_key"])
+demo["chat_client"] = init_yext_client(demo["chat_api_key"], environment=demo["environment"]) if chat_direct_answer and demo["chat_api_key"] else None
 
 # Query input
 query = st.text_input(label=f"Search {demo['name']}:", value=demo["default_search"])
@@ -329,17 +375,17 @@ if query:
 
     # Render results
     with vector:
-        st.write("### Vector Document Search")
+        st.write("### Vector Search Results")
         vector_response, vector_placeholder = render_results(query, demo)
 
     if show_current:
         with current:
-            st.write("### Non-Vector Search")
+            st.write("### Non-Vector Search Results")
             current_response, current_placeholder = render_results(query, demo, client="current_client")
     
     if show_hybrid:
         with hybrid:
-            st.write("### Hybrid Search")
+            st.write("### Hybrid Search Results")
             hybrid_response, hybrid_placeholder = render_results(query, demo, client="hybrid_client")
 
     # Render direct answers

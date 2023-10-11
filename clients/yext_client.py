@@ -4,10 +4,11 @@ from typing import Optional
 
 class CustomYextClient():
 
-    def __init__(self, api_key):
+    def __init__(self, api_key, environment=None):
         self.v = "20230601"
         self.api_key = api_key
         self.default_params = {"api_key": self.api_key, "v": self.v}
+        self.environment = environment
 
 
     def chat_message(
@@ -18,6 +19,7 @@ class CustomYextClient():
         goal_id: str = "ANSWER_QUESTION",
         step_indices: list = [1],
     ):
+        # domain = "liveapi-sandbox" if self.environment == "SANDBOX" else "liveapi-us2"
         base_url = f"https://liveapi-us2.yext.com/v2/accounts/me/chat/{bot_id}/message"
         request_body = {
             "messages": [
@@ -53,8 +55,14 @@ class CustomYextClient():
         vertical_key: str,
         locale: str = "en",
         version: str = "STAGING",
-        endpoint: str = "https://liveapi-us2.yext.com/v2/accounts/me/search/vertical/query"
+        endpoint: str = None
     ):
+        
+        domain = "liveapi-sandbox" if self.environment == "SANDBOX" else "liveapi-us2"
+        base_url = f"https://{domain}.yext.com/v2/accounts/me/search/vertical/query"
+
+        # Override endpoint if provided
+        base_url = endpoint if endpoint else base_url
 
         params = {
             "input": query,
@@ -65,6 +73,6 @@ class CustomYextClient():
             "version": version,
             "verticalKey": vertical_key,
         }
-        response = requests.get(endpoint, params=params)
+        response = requests.get(base_url, params=params)
         response.raise_for_status()
         return response.json()
