@@ -42,13 +42,21 @@ def clean_search_results(dsg_client, results, prompt="clean_segment_prompt.md"):
 
 def vector_result_card(result):
     name = result["data"]["name"]
+    segment = result["segment"]["text"].strip()
+    score = result["segment"]["score"]
 
     # Drop name segments
     if result["segment"]["text"] == name:
-        return
-    
-    segment = result["segment"]["text"].strip()
-    score = result["segment"]["score"]
+        template = f"""
+        <div style="border-radius: 5px; background-color: #f2f2f2; padding: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);">
+            <p style="font-size: 18px; font-weight: bold;">{name}</p>
+            <p style="margin: 10px 0;">(Title) {segment}</p>
+            <p style="text-align: right;"><i>Score: {score}</i></p>
+        </div>
+        """
+        st.write(template, unsafe_allow_html=True)
+        st.write("---")
+        return 
 
     template = f"""
     <div style="border-radius: 5px; background-color: #f2f2f2; padding: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);">
@@ -190,22 +198,22 @@ def render_direct_answer(response, element, demo):
 
 
 DEMOS = [
-    {
-        "name": "CNO File",
-        "api_key": st.secrets["cno"]["api_key"],
-        "chat_api_key": st.secrets["cno"]["chat_api_key"],
-        "hybrid_api_key": None,
-        "chat_params": {
-            "bot_id": "generic-question-answerer",
-            "goal_id": "ANSWER_QUESTION",
-            "step_indices": [0],
-        },
-        "experience_key": "answers",
-        "vertical_key": "files",
-        "current_vertical_key": "files_old",
-        "default_search": "",
-        "environment": "SANDBOX"
-    },
+    # {
+    #     "name": "CNO File",
+    #     "api_key": st.secrets["cno"]["api_key"],
+    #     "chat_api_key": st.secrets["cno"]["chat_api_key"],
+    #     "hybrid_api_key": None,
+    #     "chat_params": {
+    #         "bot_id": "generic-question-answerer",
+    #         "goal_id": "ANSWER_QUESTION",
+    #         "step_indices": [0],
+    #     },
+    #     "experience_key": "answers",
+    #     "vertical_key": "files",
+    #     "current_vertical_key": "files_old",
+    #     "default_search": "",
+    #     "environment": "SANDBOX"
+    # },
     {
         "name": "Harry Potter Books",
         "api_key": st.secrets["book-search"]["api_key"],
@@ -270,22 +278,38 @@ DEMOS = [
     #     "default_search": "",
     #     "environment": None,
     # },
-    # {
-    #     "name": "Hitchhikers",
-    #     "api_key": st.secrets["hitchhikers"]["api_key"],
-    #     "chat_api_key": st.secrets["hitchhikers"]["chat_api_key"],
-    #     "hybrid_api_key": None,
-    #     "chat_params": {
-    #         "bot_id": "generic-question-answerer",
-    #         "goal_id": "ANSWER_QUESTION",
-    #         "step_indices": [0],
-    #     },
-    #     "experience_key": "yext-help-hitchhikers-vector-search",
-    #     "vertical_key": "content",
-    #     "current_vertical_key": "content_current",
-    #     "default_search": "",
-    #     "environment": None,
-    # },
+    {
+        "name": "Hitchhikers",
+        "api_key": st.secrets["hitchhikers"]["api_key"],
+        "chat_api_key": st.secrets["hitchhikers"]["chat_api_key"],
+        "hybrid_api_key": None,
+        "chat_params": {
+            "bot_id": "generic-question-answerer",
+            "goal_id": "ANSWER_QUESTION",
+            "step_indices": [0],
+        },
+        "experience_key": "yext-help-hitchhikers-vector-search",
+        "vertical_key": "content",
+        "current_vertical_key": "content_current",
+        "default_search": "",
+        "environment": None,
+    },
+    {
+        "name": "Telescope Knowledge Base",
+        "api_key": st.secrets["telescope"]["api_key"],
+        "chat_api_key": st.secrets["telescope"]["chat_api_key"],
+        "hybrid_api_key": None,
+        "chat_params": {
+            "bot_id": "generic-question-answerer",
+            "goal_id": "ANSWER_QUESTION",
+            "step_indices": [0],
+        },
+        "experience_key": "yext-intranet",
+        "vertical_key": "knowledge_base_vector",
+        "current_vertical_key": "knowledge_base",
+        "default_search": "",
+        "environment": None,
+    },
     # {
     #     "name": "Ski Warehouse",
     #     "api_key": st.secrets["ski-warehouse"]["api_key"],

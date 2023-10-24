@@ -58,8 +58,8 @@ class CustomYextClient():
         endpoint: str = None
     ):
         
-        domain = "liveapi-sandbox" if self.environment == "SANDBOX" else "liveapi-us2"
-        base_url = f"https://{domain}.yext.com/v2/accounts/me/search/vertical/query"
+        # domain = "liveapi-sandbox" if self.environment == "SANDBOX" else "liveapi-us2"
+        base_url = f"https://liveapi-us2.yext.com/v2/accounts/me/search/vertical/query"
 
         # Override endpoint if provided
         base_url = endpoint if endpoint else base_url
