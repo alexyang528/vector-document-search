@@ -81,7 +81,9 @@ def regular_result_card(result):
         <p style="margin: 10px 0;">{segment}</p>
     </div>
     """
-    return st.write(template, unsafe_allow_html=True)
+    st.write(template, unsafe_allow_html=True)
+    st.write("---")
+    return
 
 
 def chat_direct_answer_card(direct_answer, element):
