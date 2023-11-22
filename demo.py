@@ -204,6 +204,7 @@ DEMOS = [
         "experience_key": "yext-help-hitchhikers-vector-search",
         "vertical_key": "content",
         "default_search": "",
+        "environment": None,
     },
 ]
 
